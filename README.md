@@ -11,3 +11,5 @@ ADMIN_USER_PASSWORD="..."
 JWT_SECRET=...
 ```
 Replace the 3 dots (...) with your data
+
+Check the frontend repo: https://github.com/rmmcosta/my-auth-app
