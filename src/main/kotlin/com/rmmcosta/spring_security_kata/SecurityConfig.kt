@@ -19,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import org.slf4j.LoggerFactory
 
 @Configuration
 @EnableWebSecurity
@@ -29,6 +30,7 @@ class SecurityConfig(
     @Value("\${app.cors.allowed-origins}") private val allowedOrigins: List<String>,
     private val oAuth2SuccessHandler: OAuth2SuccessHandler,
 ) {
+    private val log = LoggerFactory.getLogger(SecurityConfig::class.java)
 
     @Bean
     fun authenticationManager(config: AuthenticationConfiguration): AuthenticationManager {
@@ -55,7 +57,7 @@ class SecurityConfig(
                     it.baseUri("/api/auth/oauth2/authorize")
                 }
                 oAuth2LoginConfigurer.redirectionEndpoint {
-                    it.baseUri("/login/oauth2/code/*")  // Use Spring's default callback URI
+                    it.baseUri("/login/oauth2/code/*")
                 }
                 oAuth2LoginConfigurer.successHandler(oAuth2SuccessHandler)
             }
@@ -81,12 +83,24 @@ class SecurityConfig(
 
     @Bean
     fun userDetailsService(): UserDetailsService {
-        val user = User.builder()
-            .username(username)
-            .password(passwordEncoder().encode(password))
-            .roles(*roles.split(",").map { it.trim() }.toTypedArray())
-            .build()
-        return InMemoryUserDetailsManager(user)
+        log.debug("Creating CustomUserDetailsService")
+
+        // Create the in-memory user manager internally
+        val inMemoryManager = InMemoryUserDetailsManager().apply {
+            createUser(
+                User.builder()
+                    .username(username)
+                    .password(passwordEncoder().encode(password))
+                    .roles(*roles.split(",").map { it.trim() }.toTypedArray())
+                    .build()
+                    .also {
+                        log.debug("Created in-memory user: {}", it.username)
+                        log.debug("User authorities: {}", it.authorities.joinToString(", "))
+                    }
+            )
+        }
+
+        return CustomUserDetailsService(inMemoryManager)
     }
 
     @Bean
